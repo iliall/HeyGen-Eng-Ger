@@ -1,0 +1,13 @@
+python-dotenv==1.0.0
+pyyaml==6.0.1
+ffmpeg-python==0.2.0
+pydub==0.25.1
+openai-whisper
+deep-translator==1.11.4
+elevenlabs==0.2.27
+requests==2.31.0
+numpy==1.24.3
+scipy==1.11.4
+tqdm==4.66.1
+click==8.1.7
+typing-extensions==4.9.0
