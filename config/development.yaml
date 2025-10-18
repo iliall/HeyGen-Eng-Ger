@@ -1,0 +1,3 @@
+processing:
+  enable_lipsync: false
+  cleanup_temp: false

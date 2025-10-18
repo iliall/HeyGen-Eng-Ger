@@ -1,0 +1,21 @@
+audio:
+  sample_rate: 44100
+  format: wav
+
+video:
+  output_codec: libx264
+  audio_codec: aac
+
+translation:
+  source_language: en
+  target_language: de
+
+paths:
+  input_dir: data/input
+  output_dir: data/output
+  temp_dir: data/temp
+  models_dir: models
+
+processing:
+  enable_lipsync: false
+  cleanup_temp: true
