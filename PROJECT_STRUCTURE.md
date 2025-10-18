@@ -58,8 +58,7 @@ HeyGen-Eng-Ger/
 │
 ├── config/
 │   ├── default.yaml
-│   ├── development.yaml
-│   └── production.yaml
+│   └── development.yaml
 │
 ├── scripts/
 │   ├── setup.sh
