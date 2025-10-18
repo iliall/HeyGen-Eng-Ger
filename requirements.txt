@@ -6,8 +6,8 @@ openai-whisper
 deep-translator==1.11.4
 elevenlabs==0.2.27
 requests==2.31.0
-numpy==1.24.3
-scipy==1.11.4
+numpy>=1.26.0
+scipy>=1.11.4
 tqdm==4.66.1
 click==8.1.7
 typing-extensions==4.9.0
