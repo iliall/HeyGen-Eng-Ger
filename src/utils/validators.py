@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List
 
 
 SUPPORTED_VIDEO_FORMATS = ['.mp4', '.avi', '.mov', '.mkv', '.webm']

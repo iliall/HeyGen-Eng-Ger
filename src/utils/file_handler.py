@@ -1,7 +1,5 @@
-import os
 import shutil
 from pathlib import Path
-from typing import Optional
 
 
 def ensure_dir(path: str) -> Path:
