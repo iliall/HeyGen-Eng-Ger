@@ -80,6 +80,5 @@ HeyGen-Eng-Ger/
 ├── setup.py
 ├── pytest.ini
 ├── README.md
-├── CLAUDE.md
 └── LICENSE
 ```
