@@ -27,11 +27,16 @@ load_dotenv()
 @click.option('--voice-name', default=None, help='Name for cloned voice (default: speaker name from video)')
 @click.option('--whisper-model', default='base', help='Whisper model size (tiny/base/small/medium/large)')
 @click.option('--translation-service', default='google', help='Translation service (google/deepl)')
+@click.option('--stability', default=0.5, type=float, help='Voice stability 0-1 (default: 0.5, lower=more emotional)')
+@click.option('--similarity-boost', default=0.8, type=float, help='Similarity to cloned voice 0-1 (default: 0.8)')
+@click.option('--style', default=0.4, type=float, help='Style exaggeration 0-1 (default: 0.4)')
+@click.option('--speaker-boost/--no-speaker-boost', default=True, help='Boost similarity to original speaker')
 @click.option('--temp-dir', default='data/temp', help='Temporary files directory')
 @click.option('--keep-temp', is_flag=True, help='Keep temporary files after processing')
 @click.option('--save-transcription', is_flag=True, help='Save transcription to JSON file')
 def translate_video(input_video, output, source_lang, target_lang, voice_id, clone_voice, voice_name,
-                   whisper_model, translation_service, temp_dir, keep_temp, save_transcription):
+                   whisper_model, translation_service, stability, similarity_boost, style, speaker_boost,
+                   temp_dir, keep_temp, save_transcription):
     """
     Translate video from one language to another while preserving voice characteristics.
 
@@ -108,11 +113,16 @@ def translate_video(input_video, output, source_lang, target_lang, voice_id, clo
         # Step 4: Synthesize translated audio
         logger.info(f"Step 4/6: Synthesizing {target_lang} audio...")
         logger.info(f"  Using voice ID: {voice_id}")
+        logger.info(f"  Voice settings: stability={stability}, similarity={similarity_boost}, style={style}")
         segments_dir = temp_path / "segments"
         audio_files = synthesize_segments(
             segments=translated_segments,
             voice_id=voice_id,
-            output_dir=str(segments_dir)
+            output_dir=str(segments_dir),
+            stability=stability,
+            similarity_boost=similarity_boost,
+            style=style,
+            use_speaker_boost=speaker_boost
         )
         logger.info(f"  Generated {len(audio_files)} audio segments")
 

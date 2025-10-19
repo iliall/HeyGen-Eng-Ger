@@ -1,4 +1,4 @@
-from elevenlabs import VoiceSettings, clone, generate, save, set_api_key
+from elevenlabs import VoiceSettings, Voice, clone, generate, save, set_api_key
 from pathlib import Path
 from typing import List, Dict, Optional
 import os
@@ -79,7 +79,12 @@ def clone_voice(name: str, audio_files: List[str], description: str = "") -> str
 
 
 def synthesize_speech(text: str, voice_id: str, output_path: str,
-                     model: str = "eleven_multilingual_v2") -> str:
+                     model: str = "eleven_multilingual_v2",
+                     stability: float = 0.5,
+                     similarity_boost: float = 0.8,
+                     style: float = 0.4,
+                     use_speaker_boost: bool = True,
+                     output_format: str = "mp3_44100_192") -> str:
     """
     Generate speech from text using cloned voice.
 
@@ -88,16 +93,34 @@ def synthesize_speech(text: str, voice_id: str, output_path: str,
         voice_id: ID of voice to use
         output_path: Path for output audio file
         model: ElevenLabs model to use
+        stability: Voice stability (0-1). Lower = more emotional, Higher = more consistent
+        similarity_boost: How closely to match cloned voice (0-1)
+        style: Style exaggeration (0-1). Amplifies original speaker's style
+        use_speaker_boost: Boost similarity to original speaker
+        output_format: Audio output format (mp3_44100_192 = 192kbps, highest quality)
 
     Returns:
         Path to generated audio file
     """
     setup_elevenlabs()
 
+    voice_settings = VoiceSettings(
+        stability=stability,
+        similarity_boost=similarity_boost,
+        style=style,
+        use_speaker_boost=use_speaker_boost
+    )
+
+    voice = Voice(
+        voice_id=voice_id,
+        settings=voice_settings
+    )
+
     audio = generate(
         text=text,
-        voice=voice_id,
-        model=model
+        voice=voice,
+        model=model,
+        output_format=output_format
     )
 
     output_file = Path(output_path)
@@ -109,7 +132,12 @@ def synthesize_speech(text: str, voice_id: str, output_path: str,
 
 
 def synthesize_segments(segments: List[Dict], voice_id: str,
-                       output_dir: str, model: str = "eleven_multilingual_v2") -> List[str]:
+                       output_dir: str, model: str = "eleven_multilingual_v2",
+                       stability: float = 0.5,
+                       similarity_boost: float = 0.8,
+                       style: float = 0.4,
+                       use_speaker_boost: bool = True,
+                       output_format: str = "mp3_44100_192") -> List[str]:
     """
     Generate speech for each segment.
 
@@ -118,6 +146,11 @@ def synthesize_segments(segments: List[Dict], voice_id: str,
         voice_id: ID of voice to use
         output_dir: Directory for output audio files
         model: ElevenLabs model to use
+        stability: Voice stability (0-1)
+        similarity_boost: How closely to match cloned voice (0-1)
+        style: Style exaggeration (0-1)
+        use_speaker_boost: Boost similarity to original speaker
+        output_format: Audio output format (mp3_44100_192 = highest quality)
 
     Returns:
         List of paths to generated audio files
@@ -133,7 +166,12 @@ def synthesize_segments(segments: List[Dict], voice_id: str,
             text=segment['text'],
             voice_id=voice_id,
             output_path=str(file_path),
-            model=model
+            model=model,
+            stability=stability,
+            similarity_boost=similarity_boost,
+            style=style,
+            use_speaker_boost=use_speaker_boost,
+            output_format=output_format
         )
         audio_files.append(str(file_path))
 
