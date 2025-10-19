@@ -5,6 +5,7 @@ import json
 
 from src.video.extractor import extract_audio, get_video_duration
 from src.audio.transcription import transcribe_audio, get_segments
+from src.audio.transcription import merge_segments as merge_segments_func
 from src.audio.transcription import save_transcription as save_transcription_file
 from src.audio.translation import translate_segments
 from src.audio.synthesis import synthesize_segments, prepare_voice_samples, clone_voice as clone_voice_api, get_forced_alignment, align_translated_words, create_word_level_segments
@@ -88,6 +89,13 @@ def translate_video(input_video, output, source_lang, target_lang, voice_id, clo
             transcription = transcribe_audio(str(audio_path), model_size=whisper_model, language=source_lang)
             segments = get_segments(transcription)
             logger.info(f"  Transcribed {len(segments)} segments")
+
+            # Always merge segments with <= 5 words for better audio quality
+            if len(segments) > 1:
+                original_count = len(segments)
+                segments = merge_segments_func(segments, min_words=5)
+                merged_count = len(segments)
+                logger.info(f"  Merged segments: {original_count} → {merged_count}")
 
             if save_transcription:
                 transcription_path = temp_path / f"{input_path.stem}_transcription.json"
