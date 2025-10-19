@@ -2,6 +2,8 @@ from elevenlabs import VoiceSettings, Voice, clone, generate, save, set_api_key
 from pathlib import Path
 from typing import List, Dict, Optional
 import os
+import requests
+import json
 from pydub import AudioSegment
 
 
@@ -198,3 +200,148 @@ def merge_audio_segments(audio_files: List[str], output_path: str) -> str:
     combined.export(output_path, format="wav")
 
     return output_path
+
+
+def get_forced_alignment(audio_path: str, text: str) -> Dict:
+    """
+    Get forced alignment data for audio and text using ElevenLabs API.
+
+    Args:
+        audio_path: Path to audio file
+        text: Transcript text to align with audio
+
+    Returns:
+        Dictionary containing alignment data with words and characters
+        {
+            "characters": [{"text": "string", "start": 0.0, "end": 0.0}],
+            "words": [{"text": "string", "start": 0.0, "end": 0.0, "loss": 0.0}],
+            "loss": 0.0
+        }
+    """
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    if not api_key:
+        raise ValueError("ELEVENLABS_API_KEY not found in environment")
+
+    url = "https://api.elevenlabs.io/v1/forced-alignment"
+    headers = {"xi-api-key": api_key}
+
+    try:
+        with open(audio_path, 'rb') as audio_file:
+            files = {
+                'text': (None, text),
+                'file': (audio_path, audio_file, 'audio/mpeg')
+            }
+
+            response = requests.post(url, headers=headers, files=files)
+            response.raise_for_status()
+
+            return response.json()
+
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Forced alignment API call failed: {e}")
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Failed to parse alignment response: {e}")
+
+
+def align_translated_words(original_alignment: Dict, translated_text: str,
+                          original_text: str) -> List[Dict]:
+    """
+    Map translated words to original timing using word alignment.
+
+    Args:
+        original_alignment: Alignment data from original audio
+        translated_text: German translated text
+        original_text: English original text
+
+    Returns:
+        List of aligned word segments with timing
+        [{"text": "word", "start": 0.0, "end": 0.0, "original_word": "word"}, ...]
+    """
+    original_words = original_alignment.get('words', [])
+
+    # Simple word count mapping - this is a basic implementation
+    # In a more sophisticated version, we could use translation alignment tools
+    original_word_list = [w['text'] for w in original_words]
+    translated_word_list = translated_text.split()
+
+    if len(translated_word_list) != len(original_word_list):
+        # Fallback: use proportional timing if word counts don't match
+        return align_by_proportional_timing(original_words, translated_text)
+
+    aligned_words = []
+    for i, (orig_word, trans_word) in enumerate(zip(original_word_list, translated_word_list)):
+        if i < len(original_words):
+            aligned_words.append({
+                'text': trans_word,
+                'start': original_words[i]['start'],
+                'end': original_words[i]['end'],
+                'original_word': orig_word
+            })
+
+    return aligned_words
+
+
+def align_by_proportional_timing(original_words: List[Dict], translated_text: str) -> List[Dict]:
+    """
+    Fallback alignment using proportional timing when word counts don't match.
+
+    Args:
+        original_words: List of original word timing data
+        translated_text: Translated text
+
+    Returns:
+        List of aligned word segments with proportional timing
+    """
+    translated_words = translated_text.split()
+
+    if not original_words:
+        return []
+
+    total_duration = original_words[-1]['end'] - original_words[0]['start']
+    start_time = original_words[0]['start']
+
+    aligned_words = []
+    total_original_chars = sum(len(w['text']) + 1 for w in original_words)  # +1 for spaces
+    total_translated_chars = len(translated_text)
+
+    current_time = start_time
+    char_position = 0
+
+    for word in translated_words:
+        word_chars = len(word) + 1  # +1 for space
+        proportion = word_chars / total_translated_chars
+        word_duration = proportion * total_duration
+
+        aligned_words.append({
+            'text': word,
+            'start': current_time,
+            'end': current_time + word_duration,
+            'original_word': ''
+        })
+
+        current_time += word_duration
+
+    return aligned_words
+
+
+def create_word_level_segments(aligned_words: List[Dict]) -> List[Dict]:
+    """
+    Convert aligned words to segment format for processing.
+
+    Args:
+        aligned_words: List of aligned word data
+
+    Returns:
+        List of segments in standard format
+        [{"id": 0, "start": 0.0, "end": 0.5, "text": "word"}, ...]
+    """
+    segments = []
+    for i, word in enumerate(aligned_words):
+        segments.append({
+            'id': i,
+            'start': word['start'],
+            'end': word['end'],
+            'text': word['text']
+        })
+
+    return segments
