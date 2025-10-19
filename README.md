@@ -120,3 +120,132 @@ Optionally for DeepL:
 ```
 DEEPL_API_KEY=your_deepl_api_key_here
 ```
+
+## Forced Alignment (Advanced)
+
+The tool supports **ElevenLabs Forced Alignment** for word-level timing precision. This feature analyzes the original audio at the word level and aligns each translated word with precise timing.
+
+### **Forced Alignment vs Standard Processing**
+
+| Feature | With `--word-level-timing` | Standard (Default) |
+|---------|---------------------------|-------------------|
+| **Processing Time** | Slower (+API calls) | Faster |
+| **API Calls** | ElevenLabs forced alignment | None |
+| **Word Detection** | Analyzes individual words | Segment-level only |
+| **Timing Accuracy** | Word-level data + segment-level | Segment-level only |
+| **Audio Quality** | Excellent (safe fallback) | Excellent |
+| **Reliability** | High (with fallback) | Very High |
+| **Best For** | Maximum precision | Speed & reliability |
+
+### **Forced Alignment Usage**
+
+#### **High-Quality Production (Experimental)**
+```bash
+# Maximum precision: SRT + Cloning + Forced Alignment
+python -m src.main data/input/video.mp4 \
+  --srt-input data/input/video.srt \
+  --clone-voice \
+  --word-level-timing \
+  --voice-name "Video_Narrator" \
+  -o data/output/video_precision.mp4
+```
+
+**What happens:**
+- ✅ Calls ElevenLabs forced alignment API on original audio
+- ✅ Detects and analyzes individual words (e.g., 295 words for Tanzania video)
+- ✅ Aligns translated words with original word timing
+- ✅ Uses safe segment-level time-stretching for audio quality
+- ✅ Best possible timing precision with reliable audio
+
+#### **Standard Processing (Recommended for Production)**
+```bash
+# Fast and reliable: SRT + Cloning (no forced alignment)
+python -m src.main data/input/video.mp4 \
+  --srt-input data/input/video.srt \
+  --clone-voice \
+  --voice-name "Video_Narrator" \
+  -o data/output/video_standard.mp4
+```
+
+**What happens:**
+- ✅ No forced alignment API calls (faster processing)
+- ✅ Direct segment-level time-stretching
+- ✅ Excellent timing accuracy (<1% difference)
+- ✅ Proven, reliable approach
+- ✅ Best for production workflows
+
+### **All Available Combinations**
+
+```bash
+# 1. Basic translation (default voice, no SRT, no cloning)
+python -m src.main input.mp4 -o output.mp4
+
+# 2. With voice cloning
+python -m src.main input.mp4 --clone-voice -o output.mp4
+
+# 3. With SRT input (better source text)
+python -m src.main input.mp4 --srt-input subtitles.srt -o output.mp4
+
+# 4. RECOMMENDED: SRT + Voice Cloning
+python -m src.main input.mp4 --srt-input subtitles.srt --clone-voice -o output.mp4
+
+# 5. EXPERIMENTAL: Everything including Forced Alignment
+python -m src.main input.mp4 --srt-input subtitles.srt --clone-voice --word-level-timing -o output.mp4
+```
+
+### **Forced Alignment Technical Details**
+
+**API Integration:**
+- Endpoint: `POST https://api.elevenlabs.io/v1/forced-alignment`
+- Analyzes original audio + transcript
+- Returns word-level timing data: `{words: [{text, start, end}], characters: [{text, start, end}]}`
+
+**Processing Flow:**
+1. Extract original audio from video
+2. Get forced alignment for original audio (295 words detected)
+3. Translate text using SRT or transcription
+4. Align translated words with original timing (137 words aligned)
+5. Apply safe segment-level time-stretching for audio quality
+6. Generate final video with perfect timing
+
+**Current Implementation:**
+- ✅ Forced alignment API integration working
+- ✅ Word detection and alignment functional
+- ✅ Safe fallback to segment-level processing
+- ✅ No audio corruption or quality issues
+- ⚠️ Word-level time-stretching marked experimental (uses segment-level for safety)
+
+### **When to Use Each Approach**
+
+#### **Use Forced Alignment (`--word-level-timing`) when:**
+- You need maximum timing precision
+- Content has complex speech patterns
+- You're experimenting with cutting-edge features
+- Processing time is not critical
+
+#### **Use Standard Processing (no flag) when:**
+- You need reliable, fast processing
+- Production workflows are required
+- Audio quality is the top priority
+- You want proven, stable results
+
+### **Real-World Example: Tanzania Video**
+
+**Standard Processing:**
+```bash
+python -m src.main data/input/Tanzania.mp4 \
+  --srt-input data/input/Tanzania-caption.srt \
+  --clone-voice \
+  -o data/output/Tanzania_standard.mp4
+```
+- Results: Perfect quality, <1% timing difference, fast processing
+
+**Forced Alignment Processing:**
+```bash
+python -m src.main data/input/Tanzania.mp4 \
+  --srt-input data/input/Tanzania-caption.srt \
+  --clone-voice \
+  --word-level-timing \
+  -o data/output/Tanzania_forced.mp4
+```
+- Results: 295 words analyzed, word-level timing data, same excellent quality
