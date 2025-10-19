@@ -2,7 +2,7 @@ import pytest
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-from src.audio.synthesis import synthesize_speech, synthesize_segments, merge_audio_segments
+from src.audio.synthesis import synthesize_speech, synthesize_segments, merge_audio_segments, prepare_voice_samples, clone_voice
 
 load_dotenv()
 
@@ -98,3 +98,64 @@ class TestAudioSynthesis:
         assert Path(result).stat().st_size > 0
         # Merged file should be larger than individual segments
         assert Path(result).stat().st_size > Path(audio_files[0]).stat().st_size
+
+    def test_prepare_voice_samples(self, output_dir):
+        audio_path = "data/temp/Tanzania_audio.wav"
+        if not Path(audio_path).exists():
+            pytest.skip("Tanzania audio not available")
+
+        segments = [
+            {'id': 0, 'start': 0.0, 'end': 3.5, 'text': 'Short'},
+            {'id': 1, 'start': 3.5, 'end': 10.0, 'text': 'Longer segment'},
+            {'id': 2, 'start': 10.0, 'end': 20.0, 'text': 'Longest segment'},
+            {'id': 3, 'start': 20.0, 'end': 22.0, 'text': 'Short again'},
+        ]
+
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        voice_samples_dir = f"{output_dir}/voice_samples"
+
+        samples = prepare_voice_samples(
+            audio_path=audio_path,
+            segments=segments,
+            output_dir=voice_samples_dir,
+            max_samples=3
+        )
+
+        assert len(samples) == 3
+        for sample in samples:
+            assert Path(sample).exists()
+            assert Path(sample).stat().st_size > 0
+
+    @pytest.mark.skipif(
+        not os.getenv("ELEVENLABS_API_KEY"),
+        reason="ELEVENLABS_API_KEY not set"
+    )
+    def test_clone_voice(self, output_dir):
+        audio_path = "data/temp/Tanzania_audio.wav"
+        if not Path(audio_path).exists():
+            pytest.skip("Tanzania audio not available")
+
+        segments = [
+            {'id': 0, 'start': 0.0, 'end': 5.0, 'text': 'First'},
+            {'id': 1, 'start': 5.0, 'end': 10.0, 'text': 'Second'},
+        ]
+
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        voice_samples_dir = f"{output_dir}/voice_samples_clone"
+
+        samples = prepare_voice_samples(
+            audio_path=audio_path,
+            segments=segments,
+            output_dir=voice_samples_dir,
+            max_samples=2
+        )
+
+        voice_id = clone_voice(
+            name="test_voice_clone",
+            audio_files=samples,
+            description="Test voice cloning"
+        )
+
+        assert voice_id is not None
+        assert isinstance(voice_id, str)
+        assert len(voice_id) > 0

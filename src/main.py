@@ -7,7 +7,7 @@ from src.video.extractor import extract_audio, get_video_duration
 from src.audio.transcription import transcribe_audio, get_segments
 from src.audio.transcription import save_transcription as save_transcription_file
 from src.audio.translation import translate_segments
-from src.audio.synthesis import synthesize_segments
+from src.audio.synthesis import synthesize_segments, prepare_voice_samples, clone_voice as clone_voice_api
 from src.audio.utils import merge_time_aligned_segments
 from src.video.merger import merge_audio_video
 from src.video.synchronization import get_audio_duration, calculate_duration_mismatch
@@ -22,13 +22,15 @@ load_dotenv()
 @click.option('--output', '-o', type=click.Path(), help='Output video path')
 @click.option('--source-lang', default='en', help='Source language code (default: en)')
 @click.option('--target-lang', default='de', help='Target language code (default: de)')
-@click.option('--voice-id', default='21m00Tcm4TlvDq8ikWAM', help='ElevenLabs voice ID')
+@click.option('--voice-id', default='21m00Tcm4TlvDq8ikWAM', help='ElevenLabs voice ID (ignored if --clone-voice is used)')
+@click.option('--clone-voice', is_flag=True, help='Clone voice from original video')
+@click.option('--voice-name', default=None, help='Name for cloned voice (default: speaker name from video)')
 @click.option('--whisper-model', default='base', help='Whisper model size (tiny/base/small/medium/large)')
 @click.option('--translation-service', default='google', help='Translation service (google/deepl)')
 @click.option('--temp-dir', default='data/temp', help='Temporary files directory')
 @click.option('--keep-temp', is_flag=True, help='Keep temporary files after processing')
 @click.option('--save-transcription', is_flag=True, help='Save transcription to JSON file')
-def translate_video(input_video, output, source_lang, target_lang, voice_id,
+def translate_video(input_video, output, source_lang, target_lang, voice_id, clone_voice, voice_name,
                    whisper_model, translation_service, temp_dir, keep_temp, save_transcription):
     """
     Translate video from one language to another while preserving voice characteristics.
@@ -77,6 +79,31 @@ def translate_video(input_video, output, source_lang, target_lang, voice_id,
             service=translation_service
         )
         logger.info(f"  Translated {len(translated_segments)} segments")
+
+        # Step 3.5: Clone voice if requested
+        if clone_voice:
+            logger.info("Step 3.5/6: Cloning voice from original audio...")
+
+            # Extract voice samples from longest segments
+            voice_samples_dir = temp_path / "voice_samples"
+            voice_samples = prepare_voice_samples(
+                audio_path=str(audio_path),
+                segments=segments,
+                output_dir=str(voice_samples_dir),
+                max_samples=3
+            )
+            logger.info(f"  Extracted {len(voice_samples)} voice samples")
+
+            # Clone the voice
+            if voice_name is None:
+                voice_name = f"{input_path.stem}_voice"
+
+            voice_id = clone_voice_api(
+                name=voice_name,
+                audio_files=voice_samples,
+                description=f"Cloned voice from {input_path.name}"
+            )
+            logger.info(f"  Voice cloned successfully: {voice_id}")
 
         # Step 4: Synthesize translated audio
         logger.info(f"Step 4/6: Synthesizing {target_lang} audio...")

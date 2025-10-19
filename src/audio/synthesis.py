@@ -13,6 +13,48 @@ def setup_elevenlabs():
     set_api_key(api_key)
 
 
+def prepare_voice_samples(audio_path: str, segments: List[Dict],
+                         output_dir: str, max_samples: int = 3) -> List[str]:
+    """
+    Extract voice samples from audio for cloning.
+
+    Selects the longest segments to get a good voice sample.
+
+    Args:
+        audio_path: Path to original audio file
+        segments: List of transcription segments with timing
+        output_dir: Directory to save voice samples
+        max_samples: Maximum number of samples to extract
+
+    Returns:
+        List of paths to voice sample files
+    """
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    audio = AudioSegment.from_file(audio_path)
+
+    # Sort segments by duration (longest first)
+    sorted_segments = sorted(segments, key=lambda s: s['end'] - s['start'], reverse=True)
+
+    # Take the longest segments (up to max_samples)
+    selected_segments = sorted_segments[:max_samples]
+
+    sample_files = []
+
+    for i, segment in enumerate(selected_segments):
+        start_ms = int(segment['start'] * 1000)
+        end_ms = int(segment['end'] * 1000)
+
+        sample = audio[start_ms:end_ms]
+
+        sample_path = output_path / f"voice_sample_{i:02d}.mp3"
+        sample.export(str(sample_path), format="mp3")
+        sample_files.append(str(sample_path))
+
+    return sample_files
+
+
 def clone_voice(name: str, audio_files: List[str], description: str = "") -> str:
     """
     Clone a voice from audio samples.
