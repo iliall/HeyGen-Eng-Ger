@@ -55,7 +55,7 @@ Options:
 
 Voice Options:
   --voice-id TEXT             ElevenLabs voice ID (default: 21m00Tcm4TlvDq8ikWAM)
-                             Ignored if --clone-voice is used
+                              Ignored if --clone-voice is used
   --clone-voice               Clone voice from original video (recommended)
   --voice-name TEXT           Name for cloned voice (optional)
 
@@ -87,7 +87,7 @@ data/output/
 ├── video_de.srt              # Translated subtitles (if --save-srt)
 └── video_transcription.json  # Original transcription (if --save-transcription)
 
-data/temp/                     # Temporary files (if --keep-temp)
+data/temp/                    # Temporary files (if --keep-temp)
 ├── video_audio.wav           # Extracted audio
 ├── segments/                 # Individual audio segments
 ├── voice_samples/            # Voice cloning samples
