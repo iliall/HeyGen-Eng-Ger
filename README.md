@@ -63,7 +63,6 @@ Voice Quality Settings:
   --stability FLOAT           Voice stability 0-1 (default: 0.5, lower=more emotional)
   --similarity-boost FLOAT    Similarity to cloned voice 0-1 (default: 0.8)
   --style FLOAT               Style exaggeration 0-1 (default: 0.4)
-  --speaker-boost/--no-speaker-boost  Boost similarity to original (default: True)
 
 Processing Options:
   --whisper-model TEXT        Whisper model size: tiny/base/small/medium/large (default: base)
