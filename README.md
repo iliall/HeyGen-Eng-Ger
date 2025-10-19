@@ -115,6 +115,49 @@ python -m src.main data/input/Tanzania.mp4 \
   --clone-voice
 ```
 
+## Limitations
+
+### Current Known Limitations:
+
+1. **Background Audio Not Preserved**
+   - All original audio is replaced with synthesized voice
+   - Background music, ambient sounds, and sound effects are lost
+   - Output contains only the translated voice with no atmosphere
+
+2. **Single Speaker Only**
+   - System assumes one speaker throughout the video
+   - Multiple speakers will be cloned as a single voice
+   - No speaker diarization (identifying who is speaking when)
+
+3. **No Visual Lip-Sync**
+   - Only audio timing is adjusted (time-stretching)
+   - Mouth movements still show original language
+   - Noticeable in close-up shots of speakers
+
+4. **Voice Cloning Quality Depends on Source**
+   - Requires clean voice samples (3 longest segments used)
+   - Background noise in source affects clone quality
+   - Very short videos (< 30s) may not have enough voice data
+   - **Workaround**: Use `--stability` and `--similarity-boost` to fine-tune
+
+5. **Time-Stretching Limitations**
+   - Extreme speed changes (>50%) can sound unnatural
+   - German often has different sentence lengths than English
+   - Segment merging helps but doesn't eliminate all issues
+   - **Best Practice**: Use SRT input for better timing control
+
+6. **Processing Time & Cost**
+   - ElevenLabs API costs per character synthesized
+   - Longer videos require more API calls and processing time
+   - Voice cloning adds ~30s setup time per video
+   - **Estimate**: ~2-5 minutes per minute of video (depending on model size)
+
+7. **Whisper Transcription Accuracy**
+   - Fast speech, accents, or technical terms may be misheard
+   - Background noise reduces transcription quality
+   - **Workaround**: Use `--srt-input` with human-corrected subtitles for best results
+   - Larger models (`--whisper-model large`) are more accurate but slower
+
 ## API Keys Required
 
 Add to your `.env` file:
