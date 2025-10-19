@@ -40,6 +40,11 @@ python -m src.main input.mp4 --srt-input subtitles.srt -o output_de.mp4 --clone-
 python -m src.main input.mp4 -o output_de.mp4 --save-srt --clone-voice
 ```
 
+#### 5. **Advanced: Forced Alignment (Experimental)**
+```bash
+python -m src.main input.mp4 --srt-input subtitles.srt -o output_de.mp4 --clone-voice --word-level-timing
+```
+
 ## Complete Command Reference
 
 ```bash
@@ -74,6 +79,7 @@ Processing Options:
 SRT Subtitle Options:
   --srt-input PATH            Use SRT file instead of audio transcription
   --save-srt                  Save translated subtitles as SRT file
+  --word-level-timing         Use forced alignment for word-level timing (experimental)
 ```
 
 ## Output Files

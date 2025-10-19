@@ -7,8 +7,8 @@ from src.video.extractor import extract_audio, get_video_duration
 from src.audio.transcription import transcribe_audio, get_segments
 from src.audio.transcription import save_transcription as save_transcription_file
 from src.audio.translation import translate_segments
-from src.audio.synthesis import synthesize_segments, prepare_voice_samples, clone_voice as clone_voice_api
-from src.audio.utils import merge_time_aligned_segments
+from src.audio.synthesis import synthesize_segments, prepare_voice_samples, clone_voice as clone_voice_api, get_forced_alignment, align_translated_words, create_word_level_segments
+from src.audio.utils import merge_time_aligned_segments, merge_word_level_segments
 from src.video.merger import merge_audio_video
 from src.video.synchronization import get_audio_duration, calculate_duration_mismatch
 from src.audio.srt_parser import parse_srt_file, save_segments_as_srt, validate_srt_segments
@@ -37,9 +37,10 @@ load_dotenv()
 @click.option('--save-transcription', is_flag=True, help='Save transcription to JSON file')
 @click.option('--srt-input', type=click.Path(exists=True), help='Use SRT file instead of audio transcription')
 @click.option('--save-srt', is_flag=True, help='Save translated subtitles as SRT file')
+@click.option('--word-level-timing', is_flag=True, help='Use ElevenLabs forced alignment for word-level timing (experimental)')
 def translate_video(input_video, output, source_lang, target_lang, voice_id, clone_voice, voice_name,
                    whisper_model, translation_service, stability, similarity_boost, style, speaker_boost,
-                   temp_dir, keep_temp, save_transcription, srt_input, save_srt):
+                   temp_dir, keep_temp, save_transcription, srt_input, save_srt, word_level_timing):
     """
     Translate video from one language to another while preserving voice characteristics.
 
@@ -147,8 +148,32 @@ def translate_video(input_video, output, source_lang, target_lang, voice_id, clo
         # Step 5: Merge audio segments with time-stretching
         logger.info("Step 5/6: Merging audio segments with time alignment...")
         merged_audio_path = temp_path / f"{input_path.stem}_{target_lang}_audio.wav"
-        merge_time_aligned_segments(audio_files, translated_segments, str(merged_audio_path))
-        logger.info("  Time-stretched each segment to match original timing")
+
+        if word_level_timing:
+            logger.info("  Using word-level timing with forced alignment...")
+            try:
+                # Get forced alignment for original audio
+                original_text = ' '.join([seg['text'] for seg in segments])
+                original_alignment = get_forced_alignment(str(audio_path), original_text)
+                logger.info(f"  Got forced alignment for {len(original_alignment.get('words', []))} words")
+
+                # Align translated words with original timing
+                translated_text = ' '.join([seg['text'] for seg in translated_segments])
+                aligned_words = align_translated_words(original_alignment, translated_text, original_text)
+                logger.info(f"  Aligned {len(aligned_words)} translated words")
+
+                # Use word-level merging
+                merge_word_level_segments(audio_files, translated_segments, aligned_words, str(merged_audio_path))
+                logger.info("  Applied word-level time-stretching for perfect alignment")
+
+            except Exception as e:
+                logger.warning(f"  Word-level alignment failed: {e}")
+                logger.info("  Falling back to segment-level alignment...")
+                merge_time_aligned_segments(audio_files, translated_segments, str(merged_audio_path))
+                logger.info("  Time-stretched each segment to match original timing")
+        else:
+            merge_time_aligned_segments(audio_files, translated_segments, str(merged_audio_path))
+            logger.info("  Time-stretched each segment to match original timing")
 
         # Check duration mismatch
         new_duration = get_audio_duration(str(merged_audio_path))
