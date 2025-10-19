@@ -7,7 +7,8 @@ from src.video.extractor import extract_audio, get_video_duration
 from src.audio.transcription import transcribe_audio, get_segments
 from src.audio.transcription import save_transcription as save_transcription_file
 from src.audio.translation import translate_segments
-from src.audio.synthesis import synthesize_segments, merge_audio_segments
+from src.audio.synthesis import synthesize_segments
+from src.audio.utils import merge_time_aligned_segments
 from src.video.merger import merge_audio_video
 from src.video.synchronization import get_audio_duration, calculate_duration_mismatch
 from src.utils.logger import setup_logger
@@ -88,10 +89,11 @@ def translate_video(input_video, output, source_lang, target_lang, voice_id,
         )
         logger.info(f"  Generated {len(audio_files)} audio segments")
 
-        # Step 5: Merge audio segments
-        logger.info("Step 5/6: Merging audio segments...")
+        # Step 5: Merge audio segments with time-stretching
+        logger.info("Step 5/6: Merging audio segments with time alignment...")
         merged_audio_path = temp_path / f"{input_path.stem}_{target_lang}_audio.wav"
-        merge_audio_segments(audio_files, str(merged_audio_path))
+        merge_time_aligned_segments(audio_files, translated_segments, str(merged_audio_path))
+        logger.info("  Time-stretched each segment to match original timing")
 
         # Check duration mismatch
         new_duration = get_audio_duration(str(merged_audio_path))
