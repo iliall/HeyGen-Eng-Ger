@@ -11,6 +11,7 @@ from src.audio.synthesis import synthesize_segments, prepare_voice_samples, clon
 from src.audio.utils import merge_time_aligned_segments
 from src.video.merger import merge_audio_video
 from src.video.synchronization import get_audio_duration, calculate_duration_mismatch
+from src.audio.srt_parser import parse_srt_file, save_segments_as_srt, validate_srt_segments
 from src.utils.logger import setup_logger
 from src.utils.file_handler import ensure_dir, cleanup_temp_files, get_output_path
 
@@ -34,14 +35,17 @@ load_dotenv()
 @click.option('--temp-dir', default='data/temp', help='Temporary files directory')
 @click.option('--keep-temp', is_flag=True, help='Keep temporary files after processing')
 @click.option('--save-transcription', is_flag=True, help='Save transcription to JSON file')
+@click.option('--srt-input', type=click.Path(exists=True), help='Use SRT file instead of audio transcription')
+@click.option('--save-srt', is_flag=True, help='Save translated subtitles as SRT file')
 def translate_video(input_video, output, source_lang, target_lang, voice_id, clone_voice, voice_name,
                    whisper_model, translation_service, stability, similarity_boost, style, speaker_boost,
-                   temp_dir, keep_temp, save_transcription):
+                   temp_dir, keep_temp, save_transcription, srt_input, save_srt):
     """
     Translate video from one language to another while preserving voice characteristics.
 
-    Example:
+    Examples:
         python -m src.main input.mp4 -o output.mp4 --target-lang de
+        python -m src.main input.mp4 --srt-input subtitles.srt --save-srt
     """
     logger = setup_logger('video_translation')
 
@@ -64,16 +68,30 @@ def translate_video(input_video, output, source_lang, target_lang, voice_id, clo
         original_duration = get_video_duration(str(input_path))
         logger.info(f"  Audio extracted: {audio_path} ({original_duration:.2f}s)")
 
-        # Step 2: Transcribe audio to text
-        logger.info(f"Step 2/6: Transcribing audio ({whisper_model} model)...")
-        transcription = transcribe_audio(str(audio_path), model_size=whisper_model, language=source_lang)
-        segments = get_segments(transcription)
-        logger.info(f"  Transcribed {len(segments)} segments")
+        # Step 2: Transcribe audio to text or parse SRT
+        if srt_input:
+            logger.info(f"Step 2/6: Parsing SRT file: {srt_input}")
+            segments = parse_srt_file(srt_input)
 
-        if save_transcription:
-            transcription_path = temp_path / f"{input_path.stem}_transcription.json"
-            save_transcription_file(transcription, str(transcription_path))
-            logger.info(f"  Transcription saved: {transcription_path}")
+            # Validate SRT segments
+            validation = validate_srt_segments(segments)
+            if not validation['valid']:
+                logger.error(f"  SRT validation failed: {validation['errors']}")
+                raise ValueError("Invalid SRT file format")
+            if validation['warnings']:
+                logger.warning(f"  SRT warnings: {validation['warnings']}")
+
+            logger.info(f"  Parsed {len(segments)} segments from SRT")
+        else:
+            logger.info(f"Step 2/6: Transcribing audio ({whisper_model} model)...")
+            transcription = transcribe_audio(str(audio_path), model_size=whisper_model, language=source_lang)
+            segments = get_segments(transcription)
+            logger.info(f"  Transcribed {len(segments)} segments")
+
+            if save_transcription:
+                transcription_path = temp_path / f"{input_path.stem}_transcription.json"
+                save_transcription_file(transcription, str(transcription_path))
+                logger.info(f"  Transcription saved: {transcription_path}")
 
         # Step 3: Translate text to target language
         logger.info(f"Step 3/6: Translating text to {target_lang}...")
@@ -145,6 +163,13 @@ def translate_video(input_video, output, source_lang, target_lang, voice_id, clo
         logger.info("Step 6/6: Merging translated audio with video...")
         merge_audio_video(str(input_path), str(merged_audio_path), output)
         logger.info(f"  ✓ Translation complete: {output}")
+
+        # Step 7: Save SRT file if requested
+        if save_srt:
+            output_path = Path(output)
+            srt_output_path = output_path.with_suffix('.srt')
+            save_segments_as_srt(translated_segments, str(srt_output_path))
+            logger.info(f"  ✓ Subtitles saved: {srt_output_path}")
 
         # Show summary
         logger.info("\n" + "="*60)
