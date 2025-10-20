@@ -3,6 +3,57 @@
 ## Overview
 This project translates videos from English to German while preserving the speaker's voice identity, tone, and quality. The pipeline supports both audio transcription and SRT subtitle input, with optional voice cloning for perfect voice preservation.
 
+## Pipeline Overview
+
+The translation pipeline consists of the following main steps:
+
+### Step 1: Audio Extraction
+- Extracts audio from the input video using FFmpeg
+- Saves as high-quality WAV file (44.1kHz) for processing
+- **Implementation**: `src/video/extractor.py`
+
+### Step 2: Transcription
+- **Option A**: Transcribe audio using OpenAI Whisper (local)
+  - Supports multiple model sizes (tiny, base, small, medium, large)
+  - Automatic segment merging: segments with ≤5 words are merged with the next segment
+  - Provides word-level timestamps for each segment
+- **Option B**: Load existing SRT subtitle file
+  - Parses SRT format with timestamp validation
+  - Strips HTML tags and formatting
+- **Implementation**: `src/audio/transcription.py`, `src/audio/srt_parser.py`
+
+### Step 3: Translation
+- Translates English text to German
+- Supports Google Translate (default) and DeepL
+- Preserves segment structure and timing information
+- **Implementation**: `src/audio/translation.py`
+
+### Step 4: Voice Synthesis
+- **Option A**: Use pre-configured ElevenLabs voice
+- **Option B**: Clone voice from original speaker (recommended)
+  - Extracts 3 longest audio segments as voice samples
+  - Creates instant voice clone via ElevenLabs API
+- Generates German audio segment-by-segment
+- Voice quality settings: stability=0.5, similarity_boost=0.8, style=0.4
+- **Implementation**: `src/audio/synthesis.py`
+
+### Step 5: Audio Time-Stretching
+- Each translated segment is time-stretched to match original duration
+- Uses rubberband for pitch-preserving speed adjustment
+- Achieves <1% duration mismatch for proper lip-sync
+- **Implementation**: `src/audio/utils.py`
+
+### Step 6: Audio Merging
+- Combines all time-stretched segments into single audio file
+- Maintains original timing and silence gaps
+- **Implementation**: `src/audio/utils.py`
+
+### Step 7: Video Merging
+- Replaces original audio track with translated audio
+- Preserves original video stream without re-encoding
+- Uses FFmpeg for efficient stream replacement
+- **Implementation**: `src/video/merger.py`
+
 ## Quick Start
 
 ### Prerequisites
@@ -99,6 +150,18 @@ data/temp/                    # Temporary files (if --keep-temp)
 └── video_de_audio.wav        # Merged translated audio
 ```
 
+## Example Files
+
+This repository includes example input and output files for demonstration:
+
+### Input Files
+- **Video**: `data/input/Tanzania.mp4` - Sample video with English narration about Tanzania
+- **Subtitles**: `data/input/Tanzania-caption.srt` - Original English subtitles
+
+### Output Files
+- **Translated Video**: `data/output/test_translation.mp4` - German translation with cloned voice
+- Additional output files are generated when running the pipeline with appropriate flags
+
 ## Testing
 
 ### Run Test Suite
@@ -106,14 +169,6 @@ data/temp/                    # Temporary files (if --keep-temp)
 pytest tests/ -v
 ```
 
-### Test with Sample Video
-```bash
-# Test with included Tanzania video
-python -m src.main data/input/Tanzania.mp4 \
-  --srt-input data/input/Tanzania-caption.srt \
-  -o data/output/test_output.mp4 \
-  --clone-voice
-```
 
 ## Limitations
 
