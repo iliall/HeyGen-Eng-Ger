@@ -18,6 +18,16 @@ from src.utils.file_handler import ensure_dir, cleanup_temp_files, get_output_pa
 
 load_dotenv()
 
+# Import lipsync only when needed to avoid import errors if not installed
+import sys
+try:
+    from src.lipsync import apply_lipsync
+    LIPSINK_AVAILABLE = True
+except ImportError as e:
+    LIPSINK_AVAILABLE = False
+    print(f"Warning: Lip-sync not available: {e}")
+    print("To enable lip-sync, install required dependencies: pip install torch opencv-python librosa batch-face")
+
 
 @click.command()
 @click.argument('input_video', type=click.Path(exists=True))
@@ -39,9 +49,13 @@ load_dotenv()
 @click.option('--srt-input', type=click.Path(exists=True), help='Use SRT file instead of audio transcription')
 @click.option('--save-srt', is_flag=True, help='Save translated subtitles as SRT file')
 @click.option('--word-level-timing', is_flag=True, help='Use ElevenLabs forced alignment for word-level timing (experimental)')
+@click.option('--enable-lipsync', is_flag=True, help='Enable visual lip-sync adjustment (slow, GPU recommended)')
+@click.option('--lipsync-quality', default='balanced', type=click.Choice(['fast', 'balanced', 'best']), help='Lip-sync quality preset (default: balanced)')
+@click.option('--face-detector', default='auto', type=click.Choice(['auto', 'retinaface', 'haar']), help='Face detection method (default: auto)')
 def translate_video(input_video, output, source_lang, target_lang, voice_id, clone_voice, voice_name,
                    whisper_model, translation_service, stability, similarity_boost, style, speaker_boost,
-                   temp_dir, keep_temp, save_transcription, srt_input, save_srt, word_level_timing):
+                   temp_dir, keep_temp, save_transcription, srt_input, save_srt, word_level_timing,
+                   enable_lipsync, lipsync_quality, face_detector):
     """
     Translate video from one language to another while preserving voice characteristics.
 
@@ -193,11 +207,52 @@ def translate_video(input_video, output, source_lang, target_lang, voice_id, clo
             logger.warning(f"  ⚠ Large duration mismatch detected. Consider using time-stretching.")
 
         # Step 6: Replace video audio with translated audio
-        logger.info("Step 6/6: Merging translated audio with video...")
-        merge_audio_video(str(input_path), str(merged_audio_path), output)
-        logger.info(f"  ✓ Translation complete: {output}")
+        current_output = output
+        if enable_lipsync:
+            logger.info("Step 6/7: Merging translated audio with video...")
+            # Create temporary file for intermediate video
+            temp_output = output.replace('.mp4', '_temp_before_lipsync.mp4')
+            merge_audio_video(str(input_path), str(merged_audio_path), temp_output)
+            logger.info(f"  ✓ Intermediate video created: {temp_output}")
+            current_output = temp_output
+        else:
+            logger.info("Step 6/6: Merging translated audio with video...")
+            merge_audio_video(str(input_path), str(merged_audio_path), output)
+            logger.info(f"  ✓ Translation complete: {output}")
 
-        # Step 7: Save SRT file if requested
+        # Step 7: Apply lip-sync if requested
+        if enable_lipsync:
+            if not LIPSINK_AVAILABLE:
+                logger.error("  ✗ Lip-sync requested but dependencies not available")
+                logger.error("    Install required packages: pip install torch opencv-python librosa batch-face")
+                return
+
+            logger.info("Step 7/7: Applying visual lip-sync...")
+            try:
+                # Apply lip-sync to the merged video
+                lipsync_output = apply_lipsync(
+                    video_path=current_output,
+                    audio_path=str(merged_audio_path),
+                    output_path=output,
+                    quality=lipsync_quality,
+                    face_detector=face_detector
+                )
+                logger.info(f"  ✓ Lip-sync complete: {lipsync_output}")
+
+                # Clean up temporary file
+                if current_output != output and Path(current_output).exists():
+                    Path(current_output).unlink()
+                    logger.debug(f"  Cleaned up temporary file: {current_output}")
+
+            except Exception as e:
+                logger.error(f"  ✗ Lip-sync failed: {e}")
+                logger.error("    Continuing with non-lip-synced video...")
+                # If lip-sync fails, rename temp file to final output
+                if current_output != output and Path(current_output).exists():
+                    Path(current_output).rename(output)
+                    logger.info(f"  ✓ Using video without lip-sync: {output}")
+
+        # Step 8: Save SRT file if requested
         if save_srt:
             output_path = Path(output)
             srt_output_path = output_path.with_suffix('.srt')
