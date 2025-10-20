@@ -205,3 +205,15 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project specific
+# Model weights (large files, downloaded on demand)
+models/lipsync/*.pth
+models/lipsync/*.pt
+models/voice_cloning/*.pth
+
+# Temporary and output files
+data/temp/*
+!data/temp/.gitkeep
+data/output/*
+!data/output/.gitkeep
