@@ -1,13 +1,16 @@
-# Video Translation: English to German
+# Video Translation: English to German with Visual Lip-Sync
 
 ## Overview
 This project translates videos from English to German while preserving the speaker's voice identity, tone, and quality. The pipeline supports both audio transcription and SRT subtitle input, with optional voice cloning for perfect voice preservation.
 
+**New Feature**: Visual lip-sync adjustment using Wav2Lip to match mouth movements with translated German audio for perfect lip synchronization.
+
 ## Quick Start
 
 ### Prerequisites
+
 ```bash
-# Install Python dependencies
+# Install basic Python dependencies
 pip install -r requirements.txt
 
 # Install system dependencies (macOS)
@@ -16,6 +19,18 @@ brew install ffmpeg rubberband
 # Set up environment variables
 cp .env.example .env
 # Add your ELEVENLABS_API_KEY to .env
+```
+
+**Optional: For Visual Lip-Sync**
+```bash
+# Install additional dependencies (adds ~500MB)
+pip install opencv-python librosa batch-face
+
+# Download AI models (~400MB total)
+python -m src.lipsync.model_manager
+
+# Verify setup
+python test_lipsync_setup.py
 ```
 
 ### Basic Usage
@@ -43,6 +58,31 @@ python -m src.main input.mp4 -o output_de.mp4 --save-srt --clone-voice
 #### 5. **Advanced: Forced Alignment (Experimental)**
 ```bash
 python -m src.main input.mp4 --srt-input subtitles.srt -o output_de.mp4 --clone-voice --word-level-timing
+```
+
+#### 6. **Visual Lip-Sync** (Cloud Processing - Recommended)
+```bash
+# Step 1: Translate audio
+python -m src.main input.mp4 -o temp_de.mp4 --clone-voice
+
+# Step 2: Apply lip-sync using Modal cloud
+python scripts/modal/lipsync_modal.py process input.mp4 temp_de.mp4 output_lipsync_de.mp4
+```
+
+#### 7. **Complete Pipeline with All Features**
+```bash
+# Step 1: Full translation with subtitles
+python -m src.main input.mp4 \
+  -o temp_de.mp4 \
+  --clone-voice \
+  --save-srt \
+  --word-level-timing
+
+# Step 2: Apply visual lip-sync (cloud GPU accelerated)
+python scripts/modal/lipsync_modal.py process input.mp4 temp_de.mp4 final_lipsync_de.mp4 best auto
+
+# Step 3: Clean up temporary file
+rm temp_de.mp4
 ```
 
 ## Complete Command Reference
@@ -80,6 +120,8 @@ SRT Subtitle Options:
   --srt-input PATH            Use SRT file instead of audio transcription
   --save-srt                  Save translated subtitles as SRT file
   --word-level-timing         Use forced alignment for word-level timing (experimental)
+
+Note: For visual lip-sync, use Modal cloud processing (see Visual Lip-Sync section above)
 ```
 
 ## Output Files
@@ -115,6 +157,78 @@ python -m src.main data/input/Tanzania.mp4 \
   --clone-voice
 ```
 
+## Visual Lip-Sync (Cloud Processing)
+
+For visual lip-sync adjustment, we use Modal cloud computing to avoid local GPU requirements and complex setup. Modal provides GPU-accelerated processing with automatic model management.
+
+### Quick Setup with Modal
+
+**1. Install Modal**
+```bash
+pip install modal
+```
+
+**2. Authenticate with Modal**
+```bash
+modal setup
+```
+
+**3. One-Command Lip-Sync Processing**
+```bash
+# Setup models (one-time)
+python scripts/modal/lipsync_modal.py setup
+
+# Test setup
+python scripts/modal/lipsync_modal.py test
+
+# Process video with lip-sync
+python scripts/modal/lipsync_modal.py process input.mp4 translated_audio.wav output_lipsync.mp4
+```
+
+### Complete Workflow Example
+
+```bash
+# Step 1: Translate video audio and keep temporary files
+python -m src.main input.mp4 -o temp_output.mp4 --clone-voice --keep-temp
+# Creates: data/temp/input_de_audio.wav (the German audio we need)
+
+# Step 2: Apply lip-sync using Modal (GPU accelerated)
+python scripts/modal/lipsync_modal.py process input.mp4 data/temp/input_de_audio.wav final_output.mp4 balanced auto
+
+# Step 3: Clean up temporary files (optional)
+rm -rf data/temp/
+```
+
+### Modal Lip-Sync Options
+
+```bash
+python scripts/modal/lipsync_modal.py process <video> <audio> <output> [quality] [face_detector]
+
+Arguments:
+  video         Path to original video with English audio
+  audio         Path to translated German audio file (e.g., data/temp/input_de_audio.wav)
+  output        Path for final lip-synced video
+  quality       Processing quality: fast/balanced/best (default: balanced)
+  face_detector Face detection: auto/retinaface/haar (default: auto)
+```
+
+### Alternative: Local Processing
+
+If you prefer local processing (requires GPU and manual setup):
+
+```bash
+# Install local dependencies (adds ~500MB)
+pip install opencv-python librosa batch-face
+
+# Download models locally (~400MB)
+python -m src.lipsync.model_manager
+
+# Use local lip-sync
+python -m src.main input.mp4 -o output.mp4 --enable-lipsync --clone-voice
+```
+
+**Note**: Local processing is much slower without a powerful GPU (5-10 FPS vs 50-100+ FPS on cloud).
+
 ## Limitations
 
 ### Current Known Limitations:
@@ -129,30 +243,25 @@ python -m src.main data/input/Tanzania.mp4 \
    - Multiple speakers will be cloned as a single voice
    - No speaker diarization (identifying who is speaking when)
 
-3. **No Visual Lip-Sync**
-   - Only audio timing is adjusted (time-stretching)
-   - Mouth movements still show original language
-   - Noticeable in close-up shots of speakers
-
-4. **Voice Cloning Quality Depends on Source**
+3. **Voice Cloning Quality Depends on Source**
    - Requires clean voice samples (3 longest segments used)
    - Background noise in source affects clone quality
    - Very short videos (< 30s) may not have enough voice data
    - **Workaround**: Use `--stability` and `--similarity-boost` to fine-tune
 
-5. **Time-Stretching Limitations**
+4. **Time-Stretching Limitations**
    - Extreme speed changes (>50%) can sound unnatural
    - German often has different sentence lengths than English
    - Segment merging helps but doesn't eliminate all issues
    - **Best Practice**: Use SRT input for better timing control
 
-6. **Processing Time & Cost**
+5. **Processing Time & Cost**
    - ElevenLabs API costs per character synthesized
    - Longer videos require more API calls and processing time
    - Voice cloning adds ~30s setup time per video
    - **Estimate**: ~2-5 minutes per minute of video (depending on model size)
 
-7. **Whisper Transcription Accuracy**
+6. **Whisper Transcription Accuracy**
    - Fast speech, accents, or technical terms may be misheard
    - Background noise reduces transcription quality
    - **Workaround**: Use `--srt-input` with human-corrected subtitles for best results
