@@ -38,10 +38,16 @@ The translation pipeline consists of the following main steps:
 - **Implementation**: `src/audio/synthesis.py`
 
 ### Step 5: Audio Time-Stretching
-- Each translated segment is time-stretched to match original duration
-- Uses rubberband for pitch-preserving speed adjustment
-- Achieves <1% duration mismatch for proper lip-sync
-- **Implementation**: `src/audio/utils.py`
+- **Default Method**: Segment-level time-stretching
+  - Each translated segment is time-stretched to match original duration
+  - Uses rubberband for pitch-preserving speed adjustment
+  - Achieves <1% duration mismatch for proper lip-sync
+- **Optional Method**: Word-level forced alignment (experimental)
+  - Extracts word-level timestamps from original audio via ElevenLabs API
+  - Aligns translated German words to original English timing
+  - Provides frame-accurate synchronization
+  - Enable with `--word-level-timing` flag
+- **Implementation**: `src/audio/utils.py`, `src/audio/synthesis.py` (forced alignment)
 
 ### Step 6: Audio Merging
 - Combines all time-stretched segments into single audio file
