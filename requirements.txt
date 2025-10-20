@@ -1,3 +1,4 @@
+# Core video/audio processing (always required)
 python-dotenv==1.0.0
 pyyaml==6.0.1
 ffmpeg-python==0.2.0
@@ -11,3 +12,16 @@ scipy>=1.11.4
 tqdm==4.66.1
 click==8.1.7
 typing-extensions==4.9.0
+
+# Visual lip-sync dependencies (optional - for --enable-lipsync feature)
+# Uncomment these lines if you want to use visual lip-sync:
+# torch>=2.0.0
+# torchvision>=0.15.0
+# torchaudio>=2.0.0
+# opencv-python>=4.8.0
+# librosa>=0.10.0
+# numba>=0.57.0
+# batch-face>=1.5.0
+
+# Quick install command for lip-sync support:
+# pip install opencv-python librosa batch-face
