@@ -53,7 +53,12 @@ class Wav2LipSynthesizer:
 
         # Auto-detect device
         if device == 'auto':
-            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            if torch.cuda.is_available():
+                self.device = 'cuda'
+            elif torch.backends.mps.is_available():
+                self.device = 'mps'
+            else:
+                self.device = 'cpu'
         else:
             self.device = device
 

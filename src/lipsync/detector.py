@@ -28,6 +28,8 @@ class FaceDetector:
         """
         self.method = method
         self.detector = None
+        self.retinaface_fail_count = 0  # Track RetinaFace failures
+        self.auto_switched_to_haar = False  # Track if we auto-switched
 
         if method == 'auto':
             if BATCH_FACE_AVAILABLE:
@@ -104,10 +106,21 @@ class FaceDetector:
 
             # Sort by area (largest first)
             boxes.sort(key=lambda b: b[2] * b[3], reverse=True)
+            self.retinaface_fail_count = 0  # Reset on success
             return boxes
 
         except Exception as e:
-            logger.error(f"RetinaFace detection failed: {e}")
+            self.retinaface_fail_count += 1
+
+            # Auto-switch to Haar after 5 consecutive failures
+            if self.retinaface_fail_count >= 5 and not self.auto_switched_to_haar:
+                logger.warning(f"RetinaFace failed {self.retinaface_fail_count} times, switching to Haar Cascade")
+                self._init_haar()
+                self.auto_switched_to_haar = True
+
+            if self.retinaface_fail_count <= 5:
+                logger.error(f"RetinaFace detection failed: {e}")
+
             return []
 
     def _detect_haar(self, frame: np.ndarray) -> List[Tuple[int, int, int, int]]:
