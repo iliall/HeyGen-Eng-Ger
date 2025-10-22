@@ -163,6 +163,53 @@ If successful, you should see output in `data/output/test.mp4`.
 
 ---
 
+## Testing with Sample Videos
+
+The repository includes sample videos in `data/input/` for testing. Here are recommended test commands:
+
+### Quick Test (Fastest)
+Basic translation with pre-made voice, no background separation:
+```bash
+python -m src.main data/input/Tanzania.mp4 -o data/output/tanzania_quick.mp4 --no-background
+```
+
+### Standard Test (Recommended for Tanzania)
+Voice cloning with SRT subtitles, no background separation:
+```bash
+python -m src.main data/input/Tanzania.mp4 \
+  --srt-input data/input/Tanzania-caption.srt \
+  -o data/output/tanzania_standard.mp4 \
+  --clone-voice \
+  --no-background
+```
+
+### Full Features Test
+Force alignment for frame-accurate timing:
+```bash
+python -m src.main data/input/Tanzania.mp4 \
+  --srt-input data/input/Tanzania-caption.srt \
+  -o data/output/tanzania_word_level.mp4 \
+  --clone-voice \
+  --no-background \
+  --word-level-timing
+```
+
+### Background Separation Test (Tanzania_2)
+Test voice separation with background audio (slower, for videos with music/ambient sounds):
+```bash
+python -m src.main data/input/Tanzania_2.mp4 \
+  -o data/output/tanzania2_with_separation.mp4 \
+  --clone-voice --word-level-timing
+```
+**Note:** Tanzania_2 has background audio, so voice separation runs automatically to extract clean vocals for better transcription and cloning quality. Takes ~3-5 minutes (slower than `--no-background`).
+
+**Notes:**
+- Tanzania video has **no background audio**, so `--no-background` is recommended (48% faster)
+- Using `--srt-input` with existing subtitles gives better timing than Whisper auto-transcription
+- `--clone-voice` significantly improves quality by matching the original speaker's voice
+
+---
+
 ## Usage
 
 ### Basic Usage
@@ -297,6 +344,7 @@ pytest tests/ -v
    - Only audio timing is adjusted (time-stretching)
    - Mouth movements still show original language
    - Noticeable in close-up shots of speakers
+   - **Note**: Check out the `lipsync` branch for a partial Wav2Lip implementation
 
 4. **Voice Cloning Quality Depends on Source**
    - Requires clean voice samples (3 longest segments used)
