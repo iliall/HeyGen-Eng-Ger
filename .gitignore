@@ -211,7 +211,6 @@ __marimo__/
 *.DS_Store
 
 # Temporary and output directories
-data/output/
 data/temp/
 
 # Large model files
