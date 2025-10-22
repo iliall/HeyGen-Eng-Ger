@@ -74,20 +74,96 @@ The translation pipeline consists of the following main steps:
 - Uses FFmpeg for efficient stream replacement
 - **Implementation**: `src/video/merger.py`
 
-## Quick Start
+## Setup
 
-### Prerequisites
+### Requirements
+
+- **Python**: 3.8 or higher
+- **Operating System**: macOS, Linux, or Windows
+- **API Keys**: ElevenLabs API key (required for voice synthesis)
+
+### Installation
+
+#### 1. Clone the Repository
 ```bash
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Install system dependencies (macOS)
-brew install ffmpeg rubberband
-
-# Set up environment variables
-cp .env.example .env
-# Add your ELEVENLABS_API_KEY to .env
+git clone https://github.com/iliall/HeyGen-Eng-Ger.git
+cd HeyGen-Eng-Ger
 ```
+
+#### 2. Create Virtual Environment (Recommended)
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
+```
+
+#### 3. Install System Dependencies
+
+**macOS:**
+```bash
+brew install ffmpeg rubberband
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt update
+sudo apt install ffmpeg rubberband-cli
+```
+
+**Windows:**
+- Download and install [FFmpeg](https://ffmpeg.org/download.html)
+- Download and install [Rubberband](https://breakfastquay.com/rubberband/)
+- Add both to your system PATH
+
+#### 4. Install Python Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+**Note:** This will install ~2GB of dependencies including:
+- `demucs` (voice separation model)
+- `openai-whisper` (speech recognition)
+- `torch` (deep learning framework)
+- `elevenlabs` (voice synthesis API)
+
+#### 5. Configure Environment Variables
+
+Create a `.env` file in the project root:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add your API keys:
+```bash
+# Required
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+
+# Optional (for DeepL translation)
+DEEPL_API_KEY=your_deepl_api_key_here
+```
+
+**Getting an ElevenLabs API Key:**
+1. Sign up at [elevenlabs.io](https://elevenlabs.io)
+2. Go to your [Profile Settings](https://elevenlabs.io/app/settings)
+3. Copy your API key from the "API Key" section
+
+#### 6. Verify Installation
+
+Test the setup with a sample video:
+```bash
+python -m src.main data/input/Tanzania.mp4 -o data/output/test.mp4 --clone-voice
+```
+
+If successful, you should see output in `data/output/test.mp4`.
+
+---
+
+## Usage
 
 ### Basic Usage
 
@@ -244,15 +320,3 @@ pytest tests/ -v
    - Fast speech, accents, or technical terms may be misheard
    - Background noise reduces transcription quality
    - **Workaround**: Voice separation (enabled by default) removes background noise for better transcription. For best results, use `--srt-input` with human-corrected subtitles or larger models (`--whisper-model large`)
-
-## API Keys Required
-
-Add to your `.env` file:
-```
-ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
-```
-
-Optionally for DeepL:
-```
-DEEPL_API_KEY=your_deepl_api_key_here
-```
