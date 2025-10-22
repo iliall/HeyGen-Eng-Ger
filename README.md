@@ -12,8 +12,21 @@ The translation pipeline consists of the following main steps:
 - Saves as high-quality WAV file (44.1kHz) for processing
 - **Implementation**: `src/video/extractor.py`
 
+### Step 1.5: Voice Separation (Optional)
+- **When enabled**: Separates audio into vocals and background using Demucs AI model
+  - **Vocals**: Isolated speech/voice (used for transcription and voice cloning)
+  - **Background**: Music, ambient sounds, and noise (currently not preserved in output)
+- **Benefits**:
+  - Cleaner voice samples for more accurate transcription
+  - Better voice cloning quality (no background interference)
+  - Reduces background noise in transcription
+- **Skip with**: `--no-background` flag (48% faster, recommended if video has no background audio)
+- **Requires**: `demucs` package (installed via requirements.txt)
+- **Implementation**: `src/audio/separation.py`
+
 ### Step 2: Transcription
 - **Option A**: Transcribe audio using OpenAI Whisper (local)
+  - Uses separated vocals (if available) for cleaner transcription
   - Supports multiple model sizes (tiny, base, small, medium, large)
   - Automatic segment merging: segments with ≤5 words are merged with the next segment
   - Provides word-level timestamps for each segment
@@ -31,6 +44,7 @@ The translation pipeline consists of the following main steps:
 ### Step 4: Voice Synthesis
 - **Option A**: Use pre-configured ElevenLabs voice
 - **Option B**: Clone voice from original speaker (recommended)
+  - Uses separated vocals (if available) for cleaner voice samples
   - Extracts 3 longest audio segments as voice samples
   - Creates instant voice clone via ElevenLabs API
 - Generates German audio segment-by-segment
@@ -212,7 +226,7 @@ pytest tests/ -v
    - Requires clean voice samples (3 longest segments used)
    - Background noise in source affects clone quality
    - Very short videos (< 30s) may not have enough voice data
-   - **Workaround**: Use `--stability` and `--similarity-boost` to fine-tune
+   - **Workaround**: Voice separation (enabled by default) automatically removes background noise for better cloning quality. Also adjust `--stability` and `--similarity-boost` to fine-tune
 
 5. **Time-Stretching Limitations**
    - Extreme speed changes (>50%) can sound unnatural
@@ -229,8 +243,7 @@ pytest tests/ -v
 7. **Whisper Transcription Accuracy**
    - Fast speech, accents, or technical terms may be misheard
    - Background noise reduces transcription quality
-   - **Workaround**: Use `--srt-input` with human-corrected subtitles for best results
-   - Larger models (`--whisper-model large`) are more accurate but slower
+   - **Workaround**: Voice separation (enabled by default) removes background noise for better transcription. For best results, use `--srt-input` with human-corrected subtitles or larger models (`--whisper-model large`)
 
 ## API Keys Required
 
