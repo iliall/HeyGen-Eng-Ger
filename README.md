@@ -97,7 +97,13 @@ python -m src.main input.mp4 --srt-input subtitles.srt -o output_de.mp4 --clone-
 python -m src.main input.mp4 -o output_de.mp4 --save-srt --clone-voice
 ```
 
-#### 5. **Advanced: Forced Alignment (Experimental)**
+#### 5. **Fast Translation** (No Background Audio)
+```bash
+python -m src.main input.mp4 -o output_de.mp4 --clone-voice --no-background
+# 48% faster - for videos without background music or ambient sounds
+```
+
+#### 6. **Advanced: Forced Alignment (Experimental)**
 ```bash
 python -m src.main input.mp4 --srt-input subtitles.srt -o output_de.mp4 --clone-voice --word-level-timing
 ```
@@ -133,6 +139,10 @@ Processing Options:
   --keep-temp                 Keep temporary files after processing
   --save-transcription        Save transcription to JSON file
 
+Audio Separation Options:
+  --no-background             Skip voice separation (48% faster, assumes no background audio)
+  --background-enhancement/--no-background-enhancement  Apply noise reduction to separated background audio (default: True)
+
 SRT Subtitle Options:
   --srt-input PATH            Use SRT file instead of audio transcription
   --save-srt                  Save translated subtitles as SRT file
@@ -153,6 +163,9 @@ data/temp/                    # Temporary files (if --keep-temp)
 ├── video_audio.wav           # Extracted audio
 ├── segments/                 # Individual audio segments
 ├── voice_samples/            # Voice cloning samples
+├── separation/               # Voice separation output (if available)
+│   ├── video_audio_vocals.wav     # Isolated vocals (clean)
+│   └── video_audio_background.wav  # Background audio (music, ambient sounds)
 └── video_de_audio.wav        # Merged translated audio
 ```
 
